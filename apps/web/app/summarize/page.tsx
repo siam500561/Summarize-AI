@@ -2,21 +2,30 @@
 
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { createAuthHeaders } from "@/lib/api-security";
+import { useSession } from "@/lib/auth-client";
 import {
   AlertCircle,
   ArrowLeft,
   Check,
   Copy,
   FileText,
+  Loader2,
+  LogIn,
   RotateCcw,
   Sparkles,
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+
+// Character limits (must match backend config)
+const MIN_TEXT_LENGTH = 50;
+const MAX_TEXT_LENGTH = 50000;
 
 interface SummaryStats {
   originalWords: number;
@@ -26,6 +35,8 @@ interface SummaryStats {
 }
 
 export default function SummarizePage() {
+  const { data: session, isPending } = useSession();
+  const router = useRouter();
   const [inputText, setInputText] = useState("");
   const [summary, setSummary] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -36,18 +47,48 @@ export default function SummarizePage() {
     "short" | "medium" | "long"
   >("medium");
 
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!isPending && !session?.user) {
+      router.push("/login");
+    }
+  }, [isPending, session, router]);
+
   const handleSummarize = async () => {
     if (!inputText.trim()) return;
+
+    // Check if user is logged in
+    if (!session?.user) {
+      setError("Please log in to use the summarizer.");
+      return;
+    }
+
+    // Validate text length
+    if (charCount < MIN_TEXT_LENGTH) {
+      setError(
+        `Text is too short. Please enter at least ${MIN_TEXT_LENGTH} characters.`,
+      );
+      return;
+    }
+
+    if (charCount > MAX_TEXT_LENGTH) {
+      setError(
+        `Text is too long. Maximum ${MAX_TEXT_LENGTH.toLocaleString()} characters allowed.`,
+      );
+      return;
+    }
 
     setIsLoading(true);
     setError(null);
 
     try {
+      // Generate secure headers with signature, nonce, and user ID
+      const headers = await createAuthHeaders(session.user.id);
+
       const response = await fetch(`${API_URL}/api/summarize`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers,
+        credentials: "include", // Include cookies for session
         body: JSON.stringify({
           text: inputText.trim(),
           length: summaryLength,
@@ -93,6 +134,60 @@ export default function SummarizePage() {
 
   const wordCount = inputText.trim() ? inputText.trim().split(/\s+/).length : 0;
   const charCount = inputText.length;
+
+  // Validation states
+  const isTooShort = charCount > 0 && charCount < MIN_TEXT_LENGTH;
+  const isTooLong = charCount > MAX_TEXT_LENGTH;
+  const isValidLength =
+    charCount >= MIN_TEXT_LENGTH && charCount <= MAX_TEXT_LENGTH;
+  const canSubmit = inputText.trim() && isValidLength && !isLoading;
+
+  // Show loading state while checking authentication
+  if (isPending) {
+    return (
+      <div className="h-screen bg-background flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex flex-col items-center gap-4"
+        >
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <p className="text-muted-foreground">Loading...</p>
+        </motion.div>
+      </div>
+    );
+  }
+
+  // Show login prompt if not authenticated
+  if (!session?.user) {
+    return (
+      <div className="h-screen bg-background flex items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col items-center gap-6 text-center"
+        >
+          <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center">
+            <LogIn className="h-8 w-8 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold text-foreground mb-2">
+              Authentication Required
+            </h2>
+            <p className="text-muted-foreground">
+              Please log in to use the AI summarizer.
+            </p>
+          </div>
+          <Link href="/login">
+            <Button size="lg" className="gap-2">
+              <LogIn className="h-4 w-4" />
+              Log In
+            </Button>
+          </Link>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen bg-background flex flex-col overflow-hidden">
@@ -219,7 +314,31 @@ export default function SummarizePage() {
                   <span className="font-medium text-sm">Your Text</span>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  {wordCount} words • {charCount} chars
+                  {wordCount} words •{" "}
+                  <span
+                    className={
+                      isTooShort
+                        ? "text-amber-500"
+                        : isTooLong
+                          ? "text-red-500"
+                          : isValidLength
+                            ? "text-green-500"
+                            : ""
+                    }
+                  >
+                    {charCount.toLocaleString()}
+                  </span>
+                  <span className="text-muted-foreground/60">
+                    /{MAX_TEXT_LENGTH.toLocaleString()} chars
+                  </span>
+                  {isTooShort && (
+                    <span className="text-amber-500 ml-1">
+                      (min {MIN_TEXT_LENGTH})
+                    </span>
+                  )}
+                  {isTooLong && (
+                    <span className="text-red-500 ml-1">(over limit)</span>
+                  )}
                 </div>
               </div>
 
@@ -233,7 +352,7 @@ export default function SummarizePage() {
               <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50 shrink-0">
                 <Button
                   onClick={handleSummarize}
-                  disabled={!inputText.trim() || isLoading}
+                  disabled={!canSubmit}
                   className="flex-1 h-10 gap-2"
                 >
                   {isLoading ? (

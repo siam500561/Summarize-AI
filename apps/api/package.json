@@ -4,12 +4,12 @@
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
-    "build": "bun build src/index.ts --outdir dist --target node",
-    "deploy": "bunx sst deploy --stage production",
-    "deploy:dev": "bunx sst deploy --stage dev",
-    "remove": "bunx sst remove --stage production"
+    "build": "bun build src/lambda.ts --outdir dist --target node --minify",
+    "zip": "bun run build && powershell Compress-Archive -Path dist/* -DestinationPath lambda.zip -Force",
+    "zip:clean": "powershell Remove-Item -Path lambda.zip -ErrorAction SilentlyContinue; bun run zip"
   },
   "dependencies": {
+    "@arcjet/node": "^1.0.0",
     "@google/generative-ai": "*",
     "cors": "*",
     "dotenv": "*",
@@ -21,7 +21,6 @@
     "@types/cors": "*",
     "@types/express": "*",
     "@types/node": "*",
-    "bun-types": "*",
-    "sst": "*"
+    "bun-types": "*"
   }
 }

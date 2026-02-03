@@ -1,5 +1,5 @@
 import cors from "cors";
-import express from "express";
+import express, { Express } from "express";
 import { config, validateEnv } from "./config";
 import { sanitizeRequest, securityHeaders } from "./middleware/security";
 import routes from "./routes";
@@ -7,7 +7,7 @@ import routes from "./routes";
 // Validate environment variables
 validateEnv();
 
-const app = express();
+const app: Express = express();
 
 // Trust proxy for proper IP detection behind reverse proxies (AWS ALB, CloudFront, etc.)
 app.set("trust proxy", 1);
@@ -16,12 +16,7 @@ app.set("trust proxy", 1);
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, Postman, etc.) in development
-      if (!origin && config.nodeEnv === "development") {
-        callback(null, true);
-        return;
-      }
-
+      // In production, always require origin
       if (!origin) {
         callback(new Error("No origin provided"), false);
         return;
@@ -39,7 +34,19 @@ app.use(
     },
     credentials: true,
     methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Request-Timestamp",
+      "X-Request-Signature",
+      "X-Request-Nonce",
+      "X-User-Id",
+    ],
+    exposedHeaders: [
+      "X-RateLimit-Limit",
+      "X-RateLimit-Remaining",
+      "X-RateLimit-Reset",
+    ],
     maxAge: 86400, // 24 hours
   }),
 );
