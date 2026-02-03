@@ -4,18 +4,24 @@
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
-    "build": "bun build src/index.ts --outdir dist --target node"
+    "build": "bun build src/index.ts --outdir dist --target node",
+    "deploy": "bunx sst deploy --stage production",
+    "deploy:dev": "bunx sst deploy --stage dev",
+    "remove": "bunx sst remove --stage production"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.21.0",
-    "cors": "^2.8.5",
-    "dotenv": "^16.6.1",
-    "express": "^4.21.0"
+    "@google/generative-ai": "*",
+    "cors": "*",
+    "dotenv": "*",
+    "express": "*",
+    "serverless-http": "*"
   },
   "devDependencies": {
-    "@types/cors": "^2.8.17",
-    "@types/express": "^5.0.6",
-    "@types/node": "^22.0.0",
-    "bun-types": "^1.3.8"
+    "@types/aws-lambda": "*",
+    "@types/cors": "*",
+    "@types/express": "*",
+    "@types/node": "*",
+    "bun-types": "*",
+    "sst": "*"
   }
 }

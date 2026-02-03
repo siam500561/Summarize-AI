@@ -94,10 +94,12 @@ app.use(
   },
 );
 
-// Start server
-app.listen(config.port, () => {
-  console.log(`🚀 API server running on http://localhost:${config.port}`);
-  console.log(`📝 Environment: ${config.nodeEnv}`);
-});
+// Only start server in development (Lambda uses the exported app)
+if (config.nodeEnv !== "production") {
+  app.listen(config.port, () => {
+    console.log(`🚀 API server running on http://localhost:${config.port}`);
+    console.log(`📝 Environment: ${config.nodeEnv}`);
+  });
+}
 
 export default app;
