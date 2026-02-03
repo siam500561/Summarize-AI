@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "bun run --watch src/index.ts",
     "start": "bun run src/index.ts",
-    "build": "bun build src/lambda.ts --outdir dist --target node --minify",
+    "build": "bun build src/lambda.ts --outdir dist --target node --minify --format cjs",
     "zip": "bun run build && powershell Compress-Archive -Path dist/* -DestinationPath lambda.zip -Force",
     "zip:clean": "powershell Remove-Item -Path lambda.zip -ErrorAction SilentlyContinue; bun run zip"
   },
